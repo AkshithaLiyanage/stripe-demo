@@ -3,6 +3,7 @@ package akshitha.example.stripe.stripedemo;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -100,6 +101,7 @@ public class Server {
 	    
 	    
 	}
+	
 
 	private Customer getCustomer() {
 		CustomerCreateParams params =
@@ -117,37 +119,48 @@ public class Server {
 				}
 		return customer;
 	}
-	
-	public void retrieveSessionObject() {
-	    Stripe.apiKey = "sk_test_51IDkRqBNaYCeNlA4jUNeiS3qSxjTPkn65FcencgM3919vmPIFzWlYXXhqNOGDVqavNnrzPK0GGk67pytjPFS2wF000s4RXZo7b";
+	@GetMapping("/charge")
+	public void chargeCustomer() {
+		chargeFromSavedCard(retrieveIntent());
+	}
 
+	
+	public SetupIntent retrieveIntent() {
+	    Stripe.apiKey = "sk_test_51IDkRqBNaYCeNlA4jUNeiS3qSxjTPkn65FcencgM3919vmPIFzWlYXXhqNOGDVqavNnrzPK0GGk67pytjPFS2wF000s4RXZo7b";
+	    SetupIntent intent = null;
 	    try {
 			Session session =
 					  Session.retrieve(
-					    "cs_test_tzGDgl0pxxuJo75CZPv2Y6VkFIaqO50ngkO55OAOeZ1jP3ydDd3NmjS5"
+					    "cs_test_c1wMKUTnDBc59PDseXt6GKYkfl0Z9M4yKsRucAgtbu9fX1hc5kYWbEaW1F"
 					  );
-			SetupIntent intent = SetupIntent.retrieve(session.getSetupIntent());
-
+			intent = SetupIntent.retrieve(session.getSetupIntent());
+			
 		} catch (StripeException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	    return intent;
 	}
 	
-	public void chargeFromSavedCard() {
+	public void chargeFromSavedCard(SetupIntent setupIntent) {
 	    Stripe.apiKey = "sk_test_51IDkRqBNaYCeNlA4jUNeiS3qSxjTPkn65FcencgM3919vmPIFzWlYXXhqNOGDVqavNnrzPK0GGk67pytjPFS2wF000s4RXZo7b";
 
+	    for(String types : setupIntent.getPaymentMethodTypes()) {
+	    	System.out.println("method types"+ types);
+	    }
+	    
 		PaymentIntentCreateParams params =
 				  PaymentIntentCreateParams.builder()
 				    .setCurrency("usd")
-				    .setAmount(10l)
-				    .setPaymentMethod("{{PAYMENT_METHOD_ID}}")
-				    .setCustomer("{{CUSTOMER_ID}}")
+				    .setAmount(200l)
+				    .setPaymentMethod(setupIntent.getPaymentMethod())
+				    .setCustomer(setupIntent.getCustomer())
 				    .setConfirm(true)
 				    .setOffSession(true)
 				    .build();
 				try {
 				  PaymentIntent.create(params);
+				  System.out.println("CARD CHARGED SUCCEFULLY !!!");
 				} catch (CardException err) {
 				  // Error code will be authentication_required if authentication is needed
 				  System.out.println("Error code is : " + err.getCode());
