@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +27,11 @@ import com.stripe.param.checkout.SessionCreateParams;
 @RestController
 public class Server {
 	private static Gson gson = new Gson();
+	
+	
+	/**
+	1. PAY WITHOUT SAVING CARD
+	**/
 	@ResponseBody
 	@RequestMapping(value = "/create-checkout-session" , method = RequestMethod.POST, produces = { "application/json"})
 	public  String createCheckoutSession() {
@@ -65,10 +72,11 @@ public class Server {
 	    	      
 	    	      return gson.toJson(responseData);
 	    
-	    
-	    
-	    
 	}
+	
+	/**
+	2. SAVE CARD
+	**/
 	
 	@ResponseBody
 	@RequestMapping(value = "/create-checkout-session-save-card" , method = RequestMethod.POST, produces = { "application/json"})
@@ -81,8 +89,8 @@ public class Server {
 	    	        SessionCreateParams.builder()
 	    	          .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
 	    	          .setMode(SessionCreateParams.Mode.SETUP)
-	    	          .setCustomer(getCustomer().getId())
-	    	          .setSuccessUrl("http://localhost:8080/success.html?session_id={CHECKOUT_SESSION_ID}")
+	    	          .setCustomer("cus_Iy2jgzUKJKEkHW")// CREATE THE CUSTOMER FOR THE FIRST TIME if customer id alredy not in db
+	    	          .setSuccessUrl("http://localhost:8080/saved-success.html?session_id={CHECKOUT_SESSION_ID}")
 	    	          .setCancelUrl("http://localhost:8080/cancel.html")
 
 	       	          .build();
@@ -99,44 +107,62 @@ public class Server {
 	    	      
 	    	      return gson.toJson(responseData);
 	    
-	    
 	}
 	
-
-	private Customer getCustomer() {
-		CustomerCreateParams params =
-				  CustomerCreateParams.builder()
-				  .setEmail("abcd@ef.com")
-				  .setName("Ann corn")
-				    .build();
-
-		Customer customer = null;
-				try {
-					customer = Customer.create(params);
-				} catch (StripeException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-		return customer;
-	}
-	@GetMapping("/charge")
-	public void chargeCustomer() {
-		chargeFromSavedCard(retrieveIntent());
-	}
-
 	
-	public SetupIntent retrieveIntent() {
+	/* 2.1
+	 * RETRIEVE SESSION ID FROM SAVE CARD STEP AND CHARGE THAT CUSTOMER (from RETURN URL)
+	 */
+	
+	@GetMapping("/saved-success.html")
+	public void chargeCustomer(@RequestParam("session_id") String session_id) {
+		System.out.println("session_id : "+session_id);
+		
+		// IF SUCCESS getting session id got charging step othervise riderect to page - card saving failed
+		
+		// save session id with relevant customer seperately
+		
+		chargeFromSavedCard(retrieveIntent(getsessionObj(session_id).getSetupIntent()));
+		
+		//if chargefromsave card fail redirect fail other vise redirect to success
+		
+
+	}
+
+
+	/**
+	  3. charge customer later sessions without entering card details
+	 **/
+	
+	@GetMapping("/charge-customer")
+	public void chargeCustomerWithCustomerSetupIntent(@RequestParam("setupIntent") String setupIntent) {
+		chargeFromSavedCard(retrieveIntent(setupIntent));
+	}
+	
+	
+/*
+ * utility methods
+ */
+	
+	private Session getsessionObj(String session_id) {
+		Session session = null;
+		try {
+			session = Session.retrieve(session_id );
+		} catch (StripeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return session;
+	}
+
+	public SetupIntent retrieveIntent(String setupIntent) {
 	    Stripe.apiKey = "sk_test_51IDkRqBNaYCeNlA4jUNeiS3qSxjTPkn65FcencgM3919vmPIFzWlYXXhqNOGDVqavNnrzPK0GGk67pytjPFS2wF000s4RXZo7b";
 	    SetupIntent intent = null;
 	    try {
-			Session session =
-					  Session.retrieve(
-					    "cs_test_c1wMKUTnDBc59PDseXt6GKYkfl0Z9M4yKsRucAgtbu9fX1hc5kYWbEaW1F"
-					  );
-			intent = SetupIntent.retrieve(session.getSetupIntent());
+			
+			intent = SetupIntent.retrieve(setupIntent);
 			
 		} catch (StripeException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	    return intent;
@@ -148,7 +174,7 @@ public class Server {
 	    for(String types : setupIntent.getPaymentMethodTypes()) {
 	    	System.out.println("method types"+ types);
 	    }
-	    
+	    System.out.println("setupIntent.getPaymentMethod() : " + setupIntent.getPaymentMethod());
 		PaymentIntentCreateParams params =
 				  PaymentIntentCreateParams.builder()
 				    .setCurrency("usd")
@@ -178,5 +204,27 @@ public class Server {
 					e.printStackTrace();
 				}
 	}
+	
+	/*
+	 * CREATE THE CUSTOMER FOR THE FIRST TIME
+	 */
+
+	private Customer createCustomer() {
+		CustomerCreateParams params =
+				  CustomerCreateParams.builder()
+				  .setEmail("alexf@ef.com")
+				  .setName("Alex Ferraro")
+				    .build();
+
+		Customer customer = null;
+				try {
+					customer = Customer.create(params);
+				} catch (StripeException e) {
+					e.printStackTrace();
+				}
+		return customer;
+	}
+	
+	
 	
 }
