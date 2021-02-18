@@ -1,5 +1,6 @@
 package akshitha.example.stripe.stripedemo;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,7 +38,7 @@ public class Server {
 	public  String createCheckoutSession() {
 		  // This is your real test secret API key.
 	    Stripe.apiKey = "sk_test_51IDkRqBNaYCeNlA4jUNeiS3qSxjTPkn65FcencgM3919vmPIFzWlYXXhqNOGDVqavNnrzPK0GGk67pytjPFS2wF000s4RXZo7b";
-
+/*
 	     SessionCreateParams params =
 	    	        SessionCreateParams.builder()
 	    	          .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
@@ -58,7 +59,35 @@ public class Server {
 	    	                    .build())
 	    	                .build())
 	    	            .build())
-	    	          .build();
+	    	          
+	    	          .build();*/
+	     
+	     
+	     
+	     Map<String, Object> params = new HashMap<String, Object>();
+
+	     ArrayList<String> paymentMethodTypes = new ArrayList<String>();
+	     paymentMethodTypes.add("card");
+	     params.put("payment_method_types", paymentMethodTypes);
+
+	     ArrayList<HashMap<String, Object>> lineItems = new ArrayList<HashMap<String, Object>>();
+	     HashMap<String, Object> lineItem = new HashMap<String, Object>();
+	     lineItem.put("name", "Kavholm rental");
+	     lineItem.put("amount", 5000);
+	     lineItem.put("currency", "usd");
+	     lineItem.put("quantity", 1);
+	     lineItems.add(lineItem);
+	     params.put("line_items", lineItems);
+
+	     HashMap<String, Object> paymentIntentData = new HashMap<String, Object>();
+	     paymentIntentData.put("application_fee_amount", 1000);
+	     HashMap<String, Object> transferData = new HashMap<String, Object>();
+	     transferData.put("destination", "acct_1IMAqJPdVMbtVzuo");
+	     paymentIntentData.put("transfer_data", transferData);
+	     params.put("payment_intent_data", paymentIntentData);
+
+	     params.put("success_url", "http://localhost:8080/success.html");
+	     params.put("cancel_url", "http://localhost:8080/cancel.html");
 
 	    	      Session session = null;
 				try {
@@ -175,17 +204,34 @@ public class Server {
 	    	System.out.println("method types"+ types);
 	    }
 	    System.out.println("setupIntent.getPaymentMethod() : " + setupIntent.getPaymentMethod());
-		PaymentIntentCreateParams params =
+	    
+
+	    ArrayList paymentMethodTypes = new ArrayList();
+	    paymentMethodTypes.add("card");
+
+	    Map<String, Object> params = new HashMap<String, Object>();
+	    params.put("payment_method_types", paymentMethodTypes);
+	    params.put("amount", 6000);
+	    params.put("currency", "usd");
+	    params.put("application_fee_amount", 2000);
+	    Map<String, Object> transferDataParams = new HashMap<String, Object>();
+	    transferDataParams.put("destination", "acct_1IMAqJPdVMbtVzuo");
+	    params.put("transfer_data", transferDataParams);
+
+	    
+	    
+		PaymentIntentCreateParams param =
 				  PaymentIntentCreateParams.builder()
-				    .setCurrency("usd")
-				    .setAmount(200l)
+				    //.setCurrency("usd")
+				    //.setAmount(200l)
 				    .setPaymentMethod(setupIntent.getPaymentMethod())
 				    .setCustomer(setupIntent.getCustomer())
 				    .setConfirm(true)
 				    .setOffSession(true)
+				    .putAllExtraParam(params)
 				    .build();
 				try {
-				  PaymentIntent.create(params);
+				  PaymentIntent.create(param);
 				  System.out.println("CARD CHARGED SUCCEFULLY !!!");
 				} catch (CardException err) {
 				  // Error code will be authentication_required if authentication is needed
